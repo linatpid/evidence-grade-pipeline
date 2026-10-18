@@ -1,0 +1,112 @@
+EVIDENCE MAP - how this repository answers the technical questions
+==================================================================
+
+This document maps the running code to the specific technical concerns a demanding
+legal-platform evaluator raised, and is honest about where a demonstration ends and
+production hardening begins. Every design choice is backed by an authoritative
+source (listed at the end).
+
+Run `python -m unittest discover -s tests -v` and `python examples/demo.py` to see
+each claim below execute.
+
+
+1. PAGE- AND QUOTATION-LEVEL PROVENANCE (mixed PDF / DOCX / RTF / scanned)
+-------------------------------------------------------------------------
+Demonstrated: identity.py + model.py. Every artifact - source, page, passage,
+finding - has a content-addressable id derived from canonicalised content, so the
+source -> document -> page -> passage -> finding chain is intact and a finding always
+resolves to exact passages. Passages carry character offsets (and a bbox slot for
+PDF coordinates). Reprocessing the same page yields the same id; a new extraction is
+a new version against the same page id.
+Tests: test_identity.py (stable-across-reprocessing, tamper-evidence, finding-
+derived-from-evidence).
+Production note: format-specific extractors (PDF text layer vs OCR, DOCX/RTF
+paragraph ids) plug in at ingest_page; offsets should be rebuilt from the same parse
+that feeds retrieval, with document-version pinning.
+
+
+2. ACCOUNTING FOR EVERY INPUT; LEGITIMATE ZERO vs MISSING/FAILED (the "40,000-page" question)
+---------------------------------------------------------------------------------------------
+Demonstrated: ingest.py. A manifest registers every source with a content hash,
+reconciles expected vs extracted page counts, retains OCR confidence, and produces a
+coverage report that is only clean when nothing is unverified, all counts reconcile,
+and the remediation worklist is empty. A blank page is COMPLETE_ZERO; a low-
+confidence material OCR page is UNVERIFIED and forces remediation - the two are never
+collapsed.
+Tests: test_ingest_accounting.py (count reconciliation, true-zero vs unverified,
+failed-extraction flagging, low-confidence material OCR -> remediation).
+
+
+3. RUN-LEVEL PROOF AND FAIL-CLOSED OPERATION
+--------------------------------------------
+Demonstrated: ledger.py. A run records planned vs activated steps, per-step states
+with mandatory reasons for non-terminal states, input/output hashes, schema
+validation, retries (append-only - prior attempts preserved), and cost per attempt.
+broken_links() / assert_releasable() is a fail-closed gate: a required step that
+didn't complete, is missing its required output, or failed schema validation blocks
+release and names the exact broken link.
+Tests: test_failclosed_ledger.py (never-activated blocks, failed step blocks,
+missing-output blocks, retries appended not overwritten, cost per attempt).
+
+
+4. CITATIONS, AND DISTINGUISHING EVIDENCE FROM SPECULATION
+----------------------------------------------------------
+Demonstrated: citations.py. Exact-span quotation verification (deterministic
+substring + offset, not embedding similarity). Claims are typed EVIDENCE / INFERENCE
+/ UNSUPPORTED; with no verbatim quote and no entailment checker available, a claim is
+UNSUPPORTED - the gate never optimistically asserts support. An unverified quote is
+never carried on the finding as fact.
+Tests: test_citation_verification.py.
+Production note: INFERENCE verification is an injected NLI/entailment interface; this
+is where a model call goes, decomposed to atomic claims.
+
+
+5. PREVENTING ONE CLIENT'S DATA APPEARING IN ANOTHER'S RESULTS
+--------------------------------------------------------------
+Demonstrated: tenancy.py. Access requires an active tenant context (absent context ->
+deny, not "return all"); writes are checked against the active tenant; reads and
+retrieval/search are pre-filtered by tenant inside the store (closing the ANN
+"post-filter leak" hole). Models the PostgreSQL RLS + FORCE ROW LEVEL SECURITY +
+non-owner-role pattern in memory.
+Tests: test_tenant_isolation.py - eight negative tests that attempt cross-tenant
+reads, search bleed, context absence and cross-block leakage, all asserting fail-
+closed. Written to be a release-blocking CI gate.
+
+
+6. EU/EEA PRIVACY - PSEUDONYMISATION AND THE EXTERNAL-MODEL BOUNDARY
+-------------------------------------------------------------------
+Demonstrated: pseudonymize.py. Consistent, keyed pseudonyms (HMAC-SHA-256, 256-bit
+secret - not a reversible plain hash) preserve cross-document relationships; the re-
+identification map is held separately and never emitted; egress_gate re-scans every
+outbound payload and fails closed if a raw identifier is still present, without
+echoing the identifier in the error. crypto_shred demonstrates verifiable
+irreversibility.
+Tests: test_pseudonym_egress.py.
+Production note: NER to locate identifiers in free text, and quasi-identifier
+handling (date-shifting, banding of amounts) are the explicit next layer; the mapping
+store belongs in a separate trust boundary with a KMS-managed key.
+
+
+AUTHORITATIVE SOURCES BEHIND THE DESIGN
+---------------------------------------
+- Content-addressable storage / Merkle DAG: IPFS docs (merkle-dag); Benet, IPFS
+  (arXiv:1407.3561); the Git object model.
+- Provenance: W3C PROV-O Recommendation (2013-04-30) and PROV overview.
+- Fail-closed / fail-safe defaults: Saltzer & Schroeder, The Protection of
+  Information in Computer Systems (1975).
+- Idempotency / preserved attempts: Stripe-style idempotency-key practice; Temporal
+  durable event-history model.
+- Citation grounding: Rashkin et al., Measuring Attribution in NLG (AIS),
+  Computational Linguistics 49(4), 2023; RAGAS faithfulness; Magesh et al.,
+  Hallucination-Free? (J. Empirical Legal Studies, 2025) - commercial legal RAG still
+  hallucinates 17-33%, which is exactly why support must be verified, not assumed.
+- Tenant isolation: PostgreSQL Row-Level-Security docs (the FORCE / BYPASSRLS /
+  table-owner caveat); AWS SaaS Tenant Isolation Strategies; OWASP Authorization
+  Regression Testing Cheat Sheet; OWASP API Security Top 10 2023 API1 (BOLA).
+- GDPR pseudonymisation: GDPR Art. 4(5), 25, 32, Recital 26; EDPB Guidelines 01/2025
+  on Pseudonymisation (adopted for public consultation, 16 Jan 2025 - cite as draft);
+  EDPS/AEPD note on hashing as pseudonymisation (keyed hashing required).
+
+Note on EDPB 01/2025: at time of writing this is a draft adopted for public
+consultation, not final guidance; it is cited as such. For Hungarian deployment the
+binding texts are the EU GDPR, EDPB guidance, and NAIH (the Hungarian DPA).

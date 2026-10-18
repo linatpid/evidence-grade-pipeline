@@ -15,7 +15,7 @@ that matter for evidence-grade document analysis:
 
 Everything here is stdlib-only and runs on synthetic data. It is a public
 demonstration of *patterns*, not a product and not anyone's proprietary code.
-See EVIDENCE.md for how each module maps to the guarantees it demonstrates.
+See EVIDENCE.txt for how each module maps to the guarantees it demonstrates.
 """
 from . import identity, model, states, ledger, ingest, citations, tenancy, pseudonymize  # noqa: F401
 
