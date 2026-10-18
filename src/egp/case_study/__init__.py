@@ -8,7 +8,7 @@ This package shows, end to end, how an inherited defect is diagnosed and fixed:
 
 The accompanying tests (tests/test_case_study.py) first EXPOSE the defect with a
 characterisation test, then prove the fix and guard it against regression. See
-CASE_STUDY.md at the repo root for the written failure -> diagnosis -> change ->
+CASE_STUDY.txt at the repo root for the written failure -> diagnosis -> change ->
 testing -> result account.
 
 This is a demonstration on synthetic data, not production code.

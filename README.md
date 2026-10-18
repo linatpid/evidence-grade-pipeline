@@ -20,7 +20,7 @@ python -m unittest discover -s tests -v   # 54 tests, all green
 python examples/demo.py                    # end-to-end walkthrough
 ```
 
-See **`CASE_STUDY.md`** for a worked brownfield-stabilisation example: an inherited
+See **`CASE_STUDY.txt`** for a worked brownfield-stabilisation example: an inherited
 document-batch processor that silently drops records, the characterisation test
 that exposes it, the fail-closed fix, and the regression tests that lock it in.
 

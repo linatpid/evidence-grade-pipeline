@@ -1,7 +1,7 @@
 """
 Worked brownfield-stabilisation case: expose the defect, then prove the fix.
 
-These tests mirror the written account in CASE_STUDY.md:
+These tests mirror the written account in CASE_STUDY.txt:
   - the BEFORE tests characterise the legacy behaviour and demonstrate the silent
     data loss (the failure);
   - the AFTER tests prove the stabilised behaviour and guard it against regression.

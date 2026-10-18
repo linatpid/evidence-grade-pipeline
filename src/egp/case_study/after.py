@@ -1,7 +1,7 @@
 """
 AFTER — the stabilised document-batch processor.
 
-Diagnosis (see CASE_STUDY.md): the legacy ``process_batch`` swallowed any
+Diagnosis (see CASE_STUDY.txt): the legacy ``process_batch`` swallowed any
 malformed record with a bare ``except: continue`` and never reconciled input
 count against output count, so malformed evidence was dropped silently while the
 run reported success.
